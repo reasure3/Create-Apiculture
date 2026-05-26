@@ -1,0 +1,45 @@
+modLoader="kotlinforforge"
+loaderVersion="${loaderVersionRange}"
+license="${modLicense}"
+
+[[mods]]
+modId="${modId}"
+version="${modVersion}"
+displayName="${modName}"
+description='''
+An apiculture-focused addon for Create.
+'''
+
+[[dependencies.${modId}]]
+    modId="neoforge"
+    type="required"
+    reason="Requires NeoForge to load and run this mod."
+    versionRange="[${neoVersion},)"
+    ordering="NONE"
+    side="BOTH"
+
+[[dependencies.${modId}]]
+    modId="kotlinforforge"
+    type="required"
+    reason="This mod is written in Kotlin and requires Kotlin for Forge."
+    versionRange="${loaderVersionRange}"
+    ordering="NONE"
+    side="BOTH"
+    referralUrl="https://modrinth.com/mod/kotlin-for-forge"
+
+[[dependencies.${modId}]]
+    modId="create"
+    type="required"
+    reason="This mod is a Create addon."
+    versionRange="${createVersionRange}"
+    ordering="NONE"
+    side="BOTH"
+    referralUrl="https://www.curseforge.com/minecraft/mc-mods/create"
+
+[[dependencies.${modId}]]
+    modId="minecraft"
+    type="required"
+    reason="This mod targets Minecraft ${minecraftVersion}."
+    versionRange="${minecraftVersionRange}"
+    ordering="NONE"
+    side="BOTH"

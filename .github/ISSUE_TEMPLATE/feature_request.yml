@@ -1,0 +1,33 @@
+name: Feature Request
+description: Suggest an idea or improvement for Create Apiculture.
+title: "[Feature]: "
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: Thanks for sharing an idea.
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: Describe the feature in a few sentences.
+    validations:
+      required: true
+  - type: textarea
+    id: motivation
+    attributes:
+      label: Motivation
+      description: Explain what problem this solves or what gameplay it improves.
+    validations:
+      required: true
+  - type: textarea
+    id: create-integration
+    attributes:
+      label: Create integration
+      description: Describe how this should connect with Create mechanics, automation, or contraptions.
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Mention any simpler or different approaches you considered.

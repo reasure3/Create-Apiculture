@@ -1,0 +1,95 @@
+name: Build
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+    branches:
+      - main
+      - develop
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Validate Gradle wrapper
+        uses: gradle/actions/wrapper-validation@v6
+
+      - name: Detect build-relevant changes
+        id: changes
+        shell: bash
+        run: |
+          # Manual runs should always execute the full build.
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "build=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            base="${{ github.event.pull_request.base.sha }}"
+          else
+            base="${{ github.event.before }}"
+          fi
+          head="HEAD"
+
+          # New branches and force-pushed histories may not have a usable base commit.
+          # In that case, prefer running the build over failing change detection.
+          if [[ "$base" =~ ^0+$ ]]; then
+            echo "build=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if ! git cat-file -e "$base^{commit}" 2>/dev/null; then
+            echo "build=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          changed_files="$(git diff --name-only "$base" "$head")"
+          echo "$changed_files"
+
+          # Markdown and docs-only changes do not need the Gradle build.
+          if echo "$changed_files" | grep -Ev '(^docs/|\.md$)' | grep -q .; then
+            echo "build=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "build=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Setup JDK 21
+        if: steps.changes.outputs.build == 'true'
+        uses: actions/setup-java@v5
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Setup Gradle
+        if: steps.changes.outputs.build == 'true'
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: Prepare Gradle wrapper
+        if: steps.changes.outputs.build == 'true'
+        run: chmod +x ./gradlew
+
+      - name: Build with Gradle
+        if: steps.changes.outputs.build == 'true'
+        run: ./gradlew build
+
+      - name: Upload build artifacts
+        if: steps.changes.outputs.build == 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: create-apiculture
+          path: build/libs/*.jar
+          if-no-files-found: error
+          retention-days: 14

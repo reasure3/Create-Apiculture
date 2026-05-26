@@ -1,0 +1,9 @@
+# Keep source/config files normalized for Linux-based builds and CI.
+* text=auto eol=lf
+
+# Windows batch scripts should keep CRLF line endings.
+*.bat text eol=crlf
+
+# Generated files are written with LF by the data generator.
+src/generated/**/.cache/* text eol=lf
+src/generated/**/*.json text eol=lf

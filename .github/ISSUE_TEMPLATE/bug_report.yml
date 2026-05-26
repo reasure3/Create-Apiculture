@@ -1,0 +1,65 @@
+name: Bug Report
+description: Report a reproducible problem with Create Apiculture.
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: Thanks for taking the time to report a problem.
+  - type: input
+    id: mod-version
+    attributes:
+      label: Create Apiculture version
+      placeholder: "1.0.0"
+    validations:
+      required: true
+  - type: input
+    id: minecraft-version
+    attributes:
+      label: Minecraft version
+      placeholder: "1.21.1"
+    validations:
+      required: true
+  - type: input
+    id: neoforge-version
+    attributes:
+      label: NeoForge version
+      placeholder: "21.1.230"
+    validations:
+      required: true
+  - type: input
+    id: create-version
+    attributes:
+      label: Create version
+      placeholder: "6.0.10"
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: Describe the problem and what you expected to happen.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Start Minecraft with ...
+        2. Place/use ...
+        3. Observe ...
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or crash report
+      description: Paste the relevant log section or link to a full log.
+      render: text
+  - type: textarea
+    id: mod-list
+    attributes:
+      label: Other installed mods
+      description: List other mods that may be related.
