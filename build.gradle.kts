@@ -140,6 +140,8 @@ dependencies {
     runtimeOnly("dev.engine-room.flywheel:flywheel-neoforge-$minecraftVersion:$flywheelVersion")
     implementation("com.tterrag.registrate:Registrate:$registrateVersion")
 
+    compileOnly("mezz.jei:jei-$minecraftVersion-neoforge-api:$jeiVersion")
+
     // Runtime-only convenience mods for local run configurations.
     localRuntime("mezz.jei:jei-$minecraftVersion-neoforge:$jeiVersion")
     localRuntime("maven.modrinth:jade:$jadeVersion")
