@@ -4,6 +4,7 @@ import com.simibubi.create.AllItems
 import com.simibubi.create.content.kinetics.deployer.DeployerApplicationRecipe
 import com.simibubi.create.content.kinetics.deployer.DeployerRecipeSearchEvent
 import com.simibubi.create.content.kinetics.deployer.ItemApplicationRecipe
+import com.simibubi.create.content.kinetics.deployer.ManualApplicationRecipe
 import io.github.reasure3.CreateApiculture
 import io.github.reasure3.registry.ModBlockEntities
 import io.github.reasure3.registry.ModBlocks
@@ -74,8 +75,20 @@ object ReinforcedBeehiveConversion {
             return
         }
 
-        event.addRecipe({ Optional.of(createDeployerRecipe(input)) }, DEPLOYER_RECIPE_PRIORITY)
+        event.addRecipe({ Optional.of(createRuntimeDeployerRecipe(input)) }, DEPLOYER_RECIPE_PRIORITY)
     }
+
+    internal fun createManualApplicationRecipe(): RecipeHolder<ManualApplicationRecipe> =
+        RecipeHolder(
+            MANUAL_APPLICATION_RECIPE_ID,
+            createBeehiveApplicationRecipe(::ManualApplicationRecipe, MANUAL_APPLICATION_RECIPE_ID),
+        )
+
+    internal fun createDisplayDeployerRecipe(): RecipeHolder<DeployerApplicationRecipe> =
+        RecipeHolder(
+            DEPLOYER_RECIPE_ID,
+            createBeehiveApplicationRecipe(::DeployerApplicationRecipe, DEPLOYER_RECIPE_ID),
+        )
 
     private fun canConvertPlacedBeehive(state: BlockState, stack: ItemStack): Boolean =
         state.`is`(Blocks.BEEHIVE) && stack.`is`(AllItems.ANDESITE_ALLOY.get())
@@ -100,16 +113,22 @@ object ReinforcedBeehiveConversion {
             .setValue(BeehiveBlock.FACING, state.getValue(BeehiveBlock.FACING))
             .setValue(BeehiveBlock.HONEY_LEVEL, state.getValue(BeehiveBlock.HONEY_LEVEL))
 
-    private fun createDeployerRecipe(input: ItemStack): RecipeHolder<DeployerApplicationRecipe> {
-        val recipe = ItemApplicationRecipe.Builder(::DeployerApplicationRecipe, DEPLOYER_RECIPE_ID)
-            .require(Blocks.BEEHIVE)
-            .require(AllItems.ANDESITE_ALLOY.get())
-            .output(ModBlocks.REINFORCED_BEEHIVE.get())
-            .build()
+    private fun createRuntimeDeployerRecipe(input: ItemStack): RecipeHolder<DeployerApplicationRecipe> {
+        val recipe = createBeehiveApplicationRecipe(::DeployerApplicationRecipe, DEPLOYER_RECIPE_ID)
 
         recipe.enforceNextResult { createDeployerResultStack(input) }
         return RecipeHolder(DEPLOYER_RECIPE_ID, recipe)
     }
+
+    private fun <R : ItemApplicationRecipe> createBeehiveApplicationRecipe(
+        factory: ItemApplicationRecipe.Factory<R>,
+        id: ResourceLocation,
+    ): R =
+        ItemApplicationRecipe.Builder(factory, id)
+            .require(Blocks.BEEHIVE)
+            .require(AllItems.ANDESITE_ALLOY.get())
+            .output(ModBlocks.REINFORCED_BEEHIVE.get())
+            .build()
 
     private fun createDeployerResultStack(input: ItemStack): ItemStack {
         val output = input.transmuteCopy(ModBlocks.REINFORCED_BEEHIVE.get(), 1)
@@ -131,6 +150,8 @@ object ReinforcedBeehiveConversion {
         blockEntity.setChanged()
     }
 
+    private val MANUAL_APPLICATION_RECIPE_ID: ResourceLocation =
+        CreateApiculture.id("item_application/reinforced_beehive")
     private val DEPLOYER_RECIPE_ID: ResourceLocation = CreateApiculture.id("deploying/reinforced_beehive")
     private const val DEPLOYER_RECIPE_PRIORITY = 1000
 }
