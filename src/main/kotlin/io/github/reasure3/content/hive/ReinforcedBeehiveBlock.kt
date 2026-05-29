@@ -2,28 +2,20 @@ package io.github.reasure3.content.hive
 
 import com.mojang.serialization.MapCodec
 import com.simibubi.create.content.equipment.wrench.IWrenchable
+import io.github.reasure3.registry.ModBlockEntities
+import net.minecraft.core.BlockPos
 import net.minecraft.core.Direction
-import net.minecraft.world.item.context.BlockPlaceContext
-import net.minecraft.world.level.block.Block
-import net.minecraft.world.level.block.HorizontalDirectionalBlock
+import net.minecraft.world.level.Level
+import net.minecraft.world.level.block.BeehiveBlock
+import net.minecraft.world.level.block.entity.BeehiveBlockEntity
+import net.minecraft.world.level.block.entity.BlockEntity
+import net.minecraft.world.level.block.entity.BlockEntityTicker
+import net.minecraft.world.level.block.entity.BlockEntityType
 import net.minecraft.world.level.block.state.BlockState
-import net.minecraft.world.level.block.state.StateDefinition
-import net.minecraft.world.level.block.state.properties.BlockStateProperties
 import net.minecraft.world.level.block.state.properties.IntegerProperty
 
-class ReinforcedBeehiveBlock(properties: Properties) : HorizontalDirectionalBlock(properties), IWrenchable {
-    init {
-        registerDefaultState(
-            stateDefinition.any()
-                .setValue(FACING, Direction.NORTH)
-                .setValue(HONEY_LEVEL, 0),
-        )
-    }
-
-    override fun codec(): MapCodec<out HorizontalDirectionalBlock> = CODEC
-
-    override fun getStateForPlacement(context: BlockPlaceContext): BlockState =
-        defaultBlockState().setValue(FACING, context.horizontalDirection.opposite)
+class ReinforcedBeehiveBlock(properties: Properties) : BeehiveBlock(properties), IWrenchable {
+    override fun codec(): MapCodec<BeehiveBlock> = CODEC
 
     override fun getRotatedBlockState(originalState: BlockState, targetedFace: Direction): BlockState =
         if (targetedFace.axis == Direction.Axis.Y) {
@@ -32,14 +24,28 @@ class ReinforcedBeehiveBlock(properties: Properties) : HorizontalDirectionalBloc
             originalState
         }
 
-    override fun createBlockStateDefinition(builder: StateDefinition.Builder<Block, BlockState>) {
-        builder.add(FACING, HONEY_LEVEL)
-    }
+    override fun newBlockEntity(pos: BlockPos, state: BlockState): BlockEntity =
+        ReinforcedBeehiveBlockEntity(pos, state)
+
+    override fun <T : BlockEntity> getTicker(
+        level: Level,
+        state: BlockState,
+        blockEntityType: BlockEntityType<T>,
+    ): BlockEntityTicker<T>? =
+        if (level.isClientSide) {
+            null
+        } else {
+            createTickerHelper(
+                blockEntityType,
+                ModBlockEntities.REINFORCED_BEEHIVE.get(),
+                BeehiveBlockEntity::serverTick
+            )
+        }
 
     companion object {
         const val MAX_HONEY_LEVELS = 5
 
-        val HONEY_LEVEL: IntegerProperty = BlockStateProperties.LEVEL_HONEY
-        val CODEC: MapCodec<ReinforcedBeehiveBlock> = simpleCodec(::ReinforcedBeehiveBlock)
+        val HONEY_LEVEL: IntegerProperty = BeehiveBlock.HONEY_LEVEL
+        val CODEC: MapCodec<BeehiveBlock> = simpleCodec(::ReinforcedBeehiveBlock)
     }
 }

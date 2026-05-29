@@ -28,7 +28,7 @@ object CreateApicultureLootTableProvider {
     private class BlockLootProvider(registries: HolderLookup.Provider) :
         BlockLootSubProvider(emptySet<Item>(), FeatureFlags.REGISTRY.allFlags(), registries) {
         override fun generate() {
-            dropSelf(ModBlocks.REINFORCED_BEEHIVE.get())
+            add(ModBlocks.REINFORCED_BEEHIVE.get(), ::createBeeHiveDrop)
         }
 
         override fun getKnownBlocks(): Iterable<Block> =

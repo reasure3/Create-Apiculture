@@ -5,6 +5,7 @@ import io.github.reasure3.datagen.client.CreateApicultureBlockStateProvider
 import io.github.reasure3.datagen.client.CreateApicultureKoKrLanguageProvider
 import io.github.reasure3.datagen.server.CreateApicultureBlockTagsProvider
 import io.github.reasure3.datagen.server.CreateApicultureLootTableProvider
+import io.github.reasure3.datagen.server.CreateApiculturePoiTypeTagsProvider
 import net.neoforged.bus.api.IEventBus
 import net.neoforged.neoforge.data.event.GatherDataEvent
 
@@ -36,6 +37,10 @@ object CreateApicultureDataGenerators {
         generator.addProvider(
             event.includeServer(),
             CreateApicultureBlockTagsProvider(output, lookupProvider, existingFileHelper),
+        )
+        generator.addProvider(
+            event.includeServer(),
+            CreateApiculturePoiTypeTagsProvider(output, lookupProvider, existingFileHelper),
         )
         generator.addProvider(
             event.includeServer(),

@@ -15,6 +15,7 @@ class CreateApicultureBlockTagsProvider(
     existingFileHelper: ExistingFileHelper,
 ) : BlockTagsProvider(output, lookupProvider, CreateApiculture.MOD_ID, existingFileHelper) {
     override fun addTags(provider: HolderLookup.Provider) {
+        tag(BlockTags.BEEHIVES).add(ModBlocks.REINFORCED_BEEHIVE.get())
         tag(BlockTags.MINEABLE_WITH_AXE).add(ModBlocks.REINFORCED_BEEHIVE.get())
         tag(BlockTags.MINEABLE_WITH_PICKAXE).add(ModBlocks.REINFORCED_BEEHIVE.get())
     }
