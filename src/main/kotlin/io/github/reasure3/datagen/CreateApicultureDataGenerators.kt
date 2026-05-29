@@ -1,7 +1,10 @@
 package io.github.reasure3.datagen
 
 import io.github.reasure3.datagen.client.CreateApicultureEnUsLanguageProvider
+import io.github.reasure3.datagen.client.CreateApicultureBlockStateProvider
 import io.github.reasure3.datagen.client.CreateApicultureKoKrLanguageProvider
+import io.github.reasure3.datagen.server.CreateApicultureBlockTagsProvider
+import io.github.reasure3.datagen.server.CreateApicultureLootTableProvider
 import net.neoforged.bus.api.IEventBus
 import net.neoforged.neoforge.data.event.GatherDataEvent
 
@@ -13,6 +16,13 @@ object CreateApicultureDataGenerators {
     private fun gatherData(event: GatherDataEvent) {
         val generator = event.generator
         val output = generator.packOutput
+        val existingFileHelper = event.existingFileHelper
+        val lookupProvider = event.lookupProvider
+
+        generator.addProvider(
+            event.includeClient(),
+            CreateApicultureBlockStateProvider(output, existingFileHelper),
+        )
 
         generator.addProvider(
             event.includeClient(),
@@ -21,6 +31,15 @@ object CreateApicultureDataGenerators {
         generator.addProvider(
             event.includeClient(),
             CreateApicultureKoKrLanguageProvider(output),
+        )
+
+        generator.addProvider(
+            event.includeServer(),
+            CreateApicultureBlockTagsProvider(output, lookupProvider, existingFileHelper),
+        )
+        generator.addProvider(
+            event.includeServer(),
+            CreateApicultureLootTableProvider.create(output, lookupProvider),
         )
     }
 }
