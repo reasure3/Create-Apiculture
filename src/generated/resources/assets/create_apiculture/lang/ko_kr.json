@@ -1,4 +1,6 @@
 {
   "block.create_apiculture.reinforced_beehive": "강화 벌통",
-  "itemGroup.create_apiculture": "Create: 양봉술"
+  "itemGroup.create_apiculture": "Create: 양봉술",
+  "tooltip.create_apiculture.reinforced_beehive.bees": "벌: ",
+  "tooltip.create_apiculture.reinforced_beehive.honey": "꿀: "
 }

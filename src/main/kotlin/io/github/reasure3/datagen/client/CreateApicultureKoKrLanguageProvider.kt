@@ -12,5 +12,7 @@ class CreateApicultureKoKrLanguageProvider(output: PackOutput) :
     override fun addTranslations() {
         add(ModCreativeTabs.MAIN_TAB_TRANSLATION_KEY, "Create: 양봉술")
         add(ModBlocks.REINFORCED_BEEHIVE.translationKey(), "강화 벌통")
+        add("tooltip.create_apiculture.reinforced_beehive.honey", "꿀: ")
+        add("tooltip.create_apiculture.reinforced_beehive.bees", "벌: ")
     }
 }

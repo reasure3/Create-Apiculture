@@ -12,5 +12,7 @@ class CreateApicultureEnUsLanguageProvider(output: PackOutput) :
     override fun addTranslations() {
         add(ModCreativeTabs.MAIN_TAB_TRANSLATION_KEY, "Create: Apiculture")
         add(ModBlocks.REINFORCED_BEEHIVE.translationKey(), "Reinforced Beehive")
+        add("tooltip.create_apiculture.reinforced_beehive.honey", "Honey: ")
+        add("tooltip.create_apiculture.reinforced_beehive.bees", "Bees: ")
     }
 }
