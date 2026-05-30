@@ -68,6 +68,10 @@ sourceSets {
     }
 }
 
+accessTransformers {
+    files.from(layout.projectDirectory.file("src/main/resources/META-INF/accesstransformer.cfg"))
+}
+
 repositories {
     mavenCentral()
 

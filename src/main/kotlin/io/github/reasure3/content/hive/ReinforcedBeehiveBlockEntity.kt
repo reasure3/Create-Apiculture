@@ -5,7 +5,6 @@ import io.github.reasure3.registry.ModBlockEntities
 import net.minecraft.core.BlockPos
 import net.minecraft.core.HolderLookup
 import net.minecraft.nbt.CompoundTag
-import net.minecraft.nbt.Tag
 import net.minecraft.network.protocol.Packet
 import net.minecraft.network.protocol.game.ClientGamePacketListener
 import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket
@@ -129,16 +128,8 @@ class ReinforcedBeehiveBlockEntity(
         syncDisplayState()
     }
 
-    private fun nectarBeeCount(registries: HolderLookup.Provider): Int {
-        val bees = saveCustomOnly(registries).getList(BEES_TAG, Tag.TAG_COMPOUND.toInt())
-        var count = 0
-        for (index in bees.indices) {
-            if (bees.getCompound(index).getCompound(ENTITY_DATA_TAG).getBoolean(HAS_NECTAR_TAG)) {
-                count++
-            }
-        }
-        return count
-    }
+    private fun nectarBeeCount(): Int =
+        stored.count { it.hasNectar() }
 
     companion object {
         const val HONEY_CAPACITY_MB = 1250
@@ -149,10 +140,6 @@ class ReinforcedBeehiveBlockEntity(
 
         const val STORED_HONEY_MB_TAG = "stored_honey_mb"
         private const val PRODUCTION_REMAINDER_TAG = "production_remainder"
-        private const val BEES_TAG = "bees"
-        private const val ENTITY_DATA_TAG = "entity_data"
-        private const val HAS_NECTAR_TAG = "HasNectar"
-
         fun serverTick(
             level: Level,
             pos: BlockPos,
@@ -167,10 +154,9 @@ class ReinforcedBeehiveBlockEntity(
                 return
             }
 
-            val registries = level.registryAccess()
-            val nectarBeesBefore = blockEntity.nectarBeeCount(registries)
+            val nectarBeesBefore = blockEntity.nectarBeeCount()
             BeehiveBlockEntity.serverTick(level, pos, state, blockEntity)
-            val deliveredNectarBees = nectarBeesBefore - blockEntity.nectarBeeCount(registries)
+            val deliveredNectarBees = nectarBeesBefore - blockEntity.nectarBeeCount()
 
             blockEntity.addHoneyFromDeliveries(deliveredNectarBees)
         }
