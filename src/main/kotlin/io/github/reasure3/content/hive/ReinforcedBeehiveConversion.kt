@@ -18,6 +18,7 @@ import net.minecraft.sounds.SoundSource
 import net.minecraft.world.InteractionResult
 import net.minecraft.world.item.BlockItem
 import net.minecraft.world.item.ItemStack
+import net.minecraft.world.item.component.BlockItemStateProperties
 import net.minecraft.world.item.crafting.RecipeHolder
 import net.minecraft.world.level.block.BeehiveBlock
 import net.minecraft.world.level.block.Block
@@ -99,19 +100,21 @@ object ReinforcedBeehiveConversion {
     private fun convertPlacedBeehive(level: ServerLevel, pos: BlockPos, state: BlockState) {
         val registryAccess = level.registryAccess()
         val beehiveData = (level.getBlockEntity(pos) as? BeehiveBlockEntity)?.saveCustomOnly(registryAccess)
-        val convertedState = createPlacedBeehiveState(state)
+        val storedHoneyMb = state.getValue(BeehiveBlock.HONEY_LEVEL) * ReinforcedBeehiveBlockEntity.VANILLA_HONEY_LEVEL_MB
+        val convertedState = createPlacedBeehiveState(state, storedHoneyMb)
 
         level.setBlock(pos, convertedState, Block.UPDATE_ALL)
 
-        if (beehiveData != null) {
-            loadPlacedBeehiveData(level, pos, beehiveData)
-        }
+        loadPlacedBeehiveData(level, pos, beehiveData, storedHoneyMb)
     }
 
-    private fun createPlacedBeehiveState(state: BlockState): BlockState =
+    private fun createPlacedBeehiveState(state: BlockState, storedHoneyMb: Int): BlockState =
         ModBlocks.REINFORCED_BEEHIVE.get().defaultBlockState()
-            .setValue(BeehiveBlock.FACING, state.getValue(BeehiveBlock.FACING))
-            .setValue(BeehiveBlock.HONEY_LEVEL, state.getValue(BeehiveBlock.HONEY_LEVEL))
+            .setValue(ReinforcedBeehiveBlock.FACING, state.getValue(BeehiveBlock.FACING))
+            .setValue(
+                ReinforcedBeehiveBlock.DISPLAY_HONEY_LEVEL,
+                ReinforcedBeehiveBlock.displayHoneyLevel(storedHoneyMb),
+            )
 
     private fun createRuntimeDeployerRecipe(input: ItemStack): RecipeHolder<DeployerApplicationRecipe> {
         val recipe = createBeehiveApplicationRecipe(::DeployerApplicationRecipe, DEPLOYER_RECIPE_ID)
@@ -132,9 +135,12 @@ object ReinforcedBeehiveConversion {
 
     private fun createDeployerResultStack(input: ItemStack): ItemStack {
         val output = input.transmuteCopy(ModBlocks.REINFORCED_BEEHIVE.get(), 1)
-        val blockEntityData = output.get(DataComponents.BLOCK_ENTITY_DATA) ?: return output
+        val storedHoneyMb = vanillaHoneyLevel(input) * ReinforcedBeehiveBlockEntity.VANILLA_HONEY_LEVEL_MB
+        val blockEntityData = output.get(DataComponents.BLOCK_ENTITY_DATA)?.copyTag() ?: CompoundTag()
 
-        BlockItem.setBlockEntityData(output, ModBlockEntities.REINFORCED_BEEHIVE.get(), blockEntityData.copyTag())
+        ReinforcedBeehiveBlockEntity.writeHoneyData(blockEntityData, storedHoneyMb)
+        BlockItem.setBlockEntityData(output, ModBlockEntities.REINFORCED_BEEHIVE.get(), blockEntityData)
+        ReinforcedBeehiveBlock.setDisplayState(output, ReinforcedBeehiveBlock.displayHoneyLevel(storedHoneyMb))
         return output
     }
 
@@ -143,12 +149,20 @@ object ReinforcedBeehiveConversion {
         level.levelEvent(LevelEvent.PARTICLES_DESTROY_BLOCK, pos, Block.getId(state))
     }
 
-    private fun loadPlacedBeehiveData(level: ServerLevel, pos: BlockPos, data: CompoundTag) {
+    private fun loadPlacedBeehiveData(level: ServerLevel, pos: BlockPos, data: CompoundTag?, storedHoneyMb: Int) {
         val blockEntity = level.getBlockEntity(pos) as? ReinforcedBeehiveBlockEntity ?: return
 
-        blockEntity.loadCustomOnly(data, level.registryAccess())
-        blockEntity.setChanged()
+        if (data != null) {
+            blockEntity.loadCustomOnly(data, level.registryAccess())
+        }
+        blockEntity.setStoredHoneyMb(storedHoneyMb)
     }
+
+    private fun vanillaHoneyLevel(stack: ItemStack): Int =
+        stack.getOrDefault(
+            DataComponents.BLOCK_STATE,
+            BlockItemStateProperties.EMPTY,
+        ).get(BeehiveBlock.HONEY_LEVEL) ?: 0
 
     private val MANUAL_APPLICATION_RECIPE_ID: ResourceLocation =
         CreateApiculture.id("item_application/reinforced_beehive")

@@ -5,30 +5,90 @@ import com.simibubi.create.content.equipment.wrench.IWrenchable
 import io.github.reasure3.CreateApiculture
 import io.github.reasure3.registry.ModBlockEntities
 import net.minecraft.ChatFormatting
+import net.minecraft.Util
+import net.minecraft.advancements.CriteriaTriggers
 import net.minecraft.core.BlockPos
 import net.minecraft.core.Direction
 import net.minecraft.core.component.DataComponents
+import net.minecraft.core.particles.ParticleTypes
 import net.minecraft.network.chat.Component
 import net.minecraft.server.level.ServerLevel
+import net.minecraft.server.level.ServerPlayer
+import net.minecraft.sounds.SoundEvents
+import net.minecraft.sounds.SoundSource
+import net.minecraft.stats.Stats
+import net.minecraft.tags.BlockTags
+import net.minecraft.tags.EnchantmentTags
+import net.minecraft.util.Mth
+import net.minecraft.util.RandomSource
+import net.minecraft.world.InteractionHand
 import net.minecraft.world.InteractionResult
+import net.minecraft.world.ItemInteractionResult
+import net.minecraft.world.entity.Entity
+import net.minecraft.world.entity.LivingEntity
+import net.minecraft.world.entity.animal.Bee
+import net.minecraft.world.entity.boss.wither.WitherBoss
+import net.minecraft.world.entity.item.ItemEntity
+import net.minecraft.world.entity.item.PrimedTnt
+import net.minecraft.world.entity.monster.Creeper
+import net.minecraft.world.entity.player.Player
+import net.minecraft.world.entity.projectile.WitherSkull
+import net.minecraft.world.entity.vehicle.MinecartTNT
 import net.minecraft.world.item.Item
 import net.minecraft.world.item.ItemStack
+import net.minecraft.world.item.Items
 import net.minecraft.world.item.TooltipFlag
 import net.minecraft.world.item.component.BlockItemStateProperties
+import net.minecraft.world.item.context.BlockPlaceContext
 import net.minecraft.world.item.context.UseOnContext
+import net.minecraft.world.item.enchantment.EnchantmentHelper
+import net.minecraft.world.level.GameRules
 import net.minecraft.world.level.Level
-import net.minecraft.world.level.block.BeehiveBlock
+import net.minecraft.world.level.LevelAccessor
+import net.minecraft.world.level.block.BaseEntityBlock
+import net.minecraft.world.level.block.Block
+import net.minecraft.world.level.block.CampfireBlock
+import net.minecraft.world.level.block.FireBlock
+import net.minecraft.world.level.block.HorizontalDirectionalBlock
+import net.minecraft.world.level.block.Mirror
+import net.minecraft.world.level.block.RenderShape
+import net.minecraft.world.level.block.Rotation
 import net.minecraft.world.level.block.entity.BeehiveBlockEntity
 import net.minecraft.world.level.block.entity.BlockEntity
 import net.minecraft.world.level.block.entity.BlockEntityTicker
 import net.minecraft.world.level.block.entity.BlockEntityType
 import net.minecraft.world.level.block.state.BlockState
+import net.minecraft.world.level.block.state.StateDefinition
+import net.minecraft.world.level.block.state.properties.DirectionProperty
 import net.minecraft.world.level.block.state.properties.IntegerProperty
+import net.minecraft.world.level.gameevent.GameEvent
+import net.minecraft.world.level.storage.loot.LootParams
+import net.minecraft.world.level.storage.loot.parameters.LootContextParams
+import net.minecraft.world.phys.AABB
+import net.minecraft.world.phys.BlockHitResult
+import net.minecraft.world.phys.shapes.VoxelShape
+import net.neoforged.neoforge.common.ItemAbilities
 import net.neoforged.neoforge.common.NeoForge
 import net.neoforged.neoforge.event.level.BlockEvent
 
-class ReinforcedBeehiveBlock(properties: Properties) : BeehiveBlock(properties), IWrenchable {
-    override fun codec(): MapCodec<BeehiveBlock> = CODEC
+/**
+ * Ports the vanilla beehive behaviors this block still needs without extending BeehiveBlock.
+ *
+ * Reinforced hives must not expose the vanilla honey-level property: Create's VanillaFluidTargets
+ * treats blocks with BlockStateProperties.LEVEL_HONEY as vanilla hives, drains 250mB, and resets
+ * that level to 0. Honey storage therefore lives in ReinforcedBeehiveBlockEntity, while this block
+ * only exposes a derived display_honey_level for models and redstone.
+ */
+class ReinforcedBeehiveBlock(properties: Properties) : BaseEntityBlock(properties), IWrenchable {
+    init {
+        registerDefaultState(
+            stateDefinition.any()
+                .setValue(FACING, Direction.NORTH)
+                .setValue(DISPLAY_HONEY_LEVEL, 0),
+        )
+    }
+
+    override fun codec(): MapCodec<ReinforcedBeehiveBlock> = CODEC
 
     override fun getRotatedBlockState(originalState: BlockState, targetedFace: Direction): BlockState =
         if (targetedFace.axis == Direction.Axis.Y) {
@@ -51,7 +111,7 @@ class ReinforcedBeehiveBlock(properties: Properties) : BeehiveBlock(properties),
             createTickerHelper(
                 blockEntityType,
                 ModBlockEntities.REINFORCED_BEEHIVE.get(),
-                BeehiveBlockEntity::serverTick
+                ReinforcedBeehiveBlockEntity::serverTick,
             )
         }
 
@@ -63,14 +123,13 @@ class ReinforcedBeehiveBlock(properties: Properties) : BeehiveBlock(properties),
     ) {
         super.appendHoverText(stack, context, tooltipComponents, tooltipFlag)
 
-        val honeyLevel =
-            stack.getOrDefault(DataComponents.BLOCK_STATE, BlockItemStateProperties.EMPTY).get(HONEY_LEVEL) ?: 0
+        val honeyMb = storedHoneyMb(stack)
         val beeCount = stack.getOrDefault(DataComponents.BEES, emptyList()).size
-        if (!hasContents(honeyLevel, beeCount)) {
+        if (!hasContents(honeyMb, beeCount)) {
             return
         }
 
-        tooltipComponents += createContentTooltip(HONEY_TOOLTIP, honeyLevel, MAX_HONEY_LEVELS)
+        tooltipComponents += createContentTooltip(HONEY_TOOLTIP, honeyMb, ReinforcedBeehiveBlockEntity.HONEY_CAPACITY_MB, "mB")
         tooltipComponents += createContentTooltip(BEES_TOOLTIP, beeCount, BeehiveBlockEntity.MAX_OCCUPANTS)
     }
 
@@ -90,7 +149,7 @@ class ReinforcedBeehiveBlock(properties: Properties) : BeehiveBlock(properties),
         }
 
         val blockEntity = level.getBlockEntity(pos)
-        if (!player.isCreative || shouldGiveCreativeStack(state, blockEntity)) {
+        if (!player.isCreative || shouldGiveCreativeStack(blockEntity)) {
             player.inventory.placeItemBackInInventory(createPreservedStack(level, state, blockEntity))
         }
 
@@ -100,42 +159,307 @@ class ReinforcedBeehiveBlock(properties: Properties) : BeehiveBlock(properties),
         return InteractionResult.SUCCESS
     }
 
+    override fun getStateForPlacement(context: BlockPlaceContext): BlockState =
+        defaultBlockState().setValue(FACING, context.horizontalDirection.opposite)
+
+    override fun hasAnalogOutputSignal(state: BlockState): Boolean =
+        true
+
+    override fun getAnalogOutputSignal(blockState: BlockState, level: Level, pos: BlockPos): Int =
+        blockState.getValue(DISPLAY_HONEY_LEVEL)
+
+    override fun playerDestroy(
+        level: Level,
+        player: Player,
+        pos: BlockPos,
+        state: BlockState,
+        blockEntity: BlockEntity?,
+        stack: ItemStack,
+    ) {
+        super.playerDestroy(level, player, pos, state, blockEntity, stack)
+        if (!level.isClientSide && blockEntity is BeehiveBlockEntity) {
+            if (!EnchantmentHelper.hasTag(stack, EnchantmentTags.PREVENTS_BEE_SPAWNS_WHEN_MINING)) {
+                blockEntity.emptyAllLivingFromHive(player, state, BeehiveBlockEntity.BeeReleaseStatus.EMERGENCY)
+                level.updateNeighbourForOutputSignal(pos, this)
+                angerNearbyBees(level, pos)
+            }
+
+            if (player is ServerPlayer) {
+                CriteriaTriggers.BEE_NEST_DESTROYED.trigger(player, state, stack, blockEntity.occupantCount)
+            }
+        }
+    }
+
+    override fun playerWillDestroy(level: Level, pos: BlockPos, state: BlockState, player: Player): BlockState {
+        val blockEntity = level.getBlockEntity(pos)
+        if (
+            !level.isClientSide &&
+            player.isCreative &&
+            level.gameRules.getBoolean(GameRules.RULE_DOBLOCKDROPS) &&
+            shouldGiveCreativeStack(blockEntity)
+        ) {
+            val stack = createPreservedStack(level as ServerLevel, state, blockEntity)
+            val itemEntity = ItemEntity(level, pos.x.toDouble(), pos.y.toDouble(), pos.z.toDouble(), stack)
+            itemEntity.setDefaultPickUpDelay()
+            level.addFreshEntity(itemEntity)
+        }
+
+        return super.playerWillDestroy(level, pos, state, player)
+    }
+
+    override fun getDrops(state: BlockState, params: LootParams.Builder): MutableList<ItemStack> {
+        val explosiveEntity = params.getOptionalParameter(LootContextParams.THIS_ENTITY)
+        val blockEntity = params.getOptionalParameter(LootContextParams.BLOCK_ENTITY)
+        if (isExplosive(explosiveEntity) && blockEntity is BeehiveBlockEntity) {
+            blockEntity.emptyAllLivingFromHive(null, state, BeehiveBlockEntity.BeeReleaseStatus.EMERGENCY)
+        }
+
+        val tool = params.getOptionalParameter(LootContextParams.TOOL)
+        if (
+            blockEntity is ReinforcedBeehiveBlockEntity &&
+            tool != null &&
+            EnchantmentHelper.hasTag(tool, EnchantmentTags.PREVENTS_BEE_SPAWNS_WHEN_MINING)
+        ) {
+            return mutableListOf(createPreservedStack(params.level, state, blockEntity))
+        }
+
+        return super.getDrops(state, params)
+    }
+
+    override fun useItemOn(
+        stack: ItemStack,
+        state: BlockState,
+        level: Level,
+        pos: BlockPos,
+        player: Player,
+        hand: InteractionHand,
+        hitResult: BlockHitResult,
+    ): ItemInteractionResult {
+        val blockEntity = level.getBlockEntity(pos) as? ReinforcedBeehiveBlockEntity
+            ?: return super.useItemOn(stack, state, level, pos, player, hand, hitResult)
+
+        if (blockEntity.storedHoneyMb < ReinforcedBeehiveBlockEntity.MANUAL_HONEY_UNIT_MB) {
+            return super.useItemOn(stack, state, level, pos, player, hand, hitResult)
+        }
+
+        val usedItem = stack.item
+        val harvested = when {
+            stack.canPerformAction(ItemAbilities.SHEARS_HARVEST) -> {
+                level.playSound(player, player.x, player.y, player.z, SoundEvents.BEEHIVE_SHEAR, SoundSource.BLOCKS, 1.0f, 1.0f)
+                if (!level.isClientSide && blockEntity.tryConsumeManualUnit()) {
+                    popResource(level, pos, ItemStack(Items.HONEYCOMB, SHEARED_HONEYCOMB_COUNT))
+                    stack.hurtAndBreak(1, player, LivingEntity.getSlotForHand(hand))
+                    level.gameEvent(player, GameEvent.SHEAR, pos)
+                }
+                true
+            }
+            stack.`is`(Items.GLASS_BOTTLE) -> {
+                level.playSound(player, player.x, player.y, player.z, SoundEvents.BOTTLE_FILL, SoundSource.BLOCKS, 1.0f, 1.0f)
+                if (!level.isClientSide && blockEntity.tryConsumeManualUnit()) {
+                    stack.shrink(1)
+                    giveHoneyBottle(player, hand, stack)
+                    level.gameEvent(player, GameEvent.FLUID_PICKUP, pos)
+                }
+                true
+            }
+            else -> false
+        }
+
+        if (!harvested) {
+            return super.useItemOn(stack, state, level, pos, player, hand, hitResult)
+        }
+
+        if (!level.isClientSide) {
+            player.awardStat(Stats.ITEM_USED.get(usedItem))
+            if (!CampfireBlock.isSmokeyPos(level, pos)) {
+                if (!blockEntity.isEmpty) {
+                    angerNearbyBees(level, pos)
+                }
+                blockEntity.emptyAllLivingFromHive(player, state, BeehiveBlockEntity.BeeReleaseStatus.EMERGENCY)
+            }
+        }
+
+        return ItemInteractionResult.sidedSuccess(level.isClientSide)
+    }
+
+    override fun animateTick(state: BlockState, level: Level, pos: BlockPos, random: RandomSource) {
+        if (state.getValue(DISPLAY_HONEY_LEVEL) >= MAX_HONEY_LEVELS) {
+            repeat(random.nextInt(1) + 1) {
+                trySpawnDripParticles(level, pos, state)
+            }
+        }
+    }
+
+    override fun updateShape(
+        state: BlockState,
+        facing: Direction,
+        facingState: BlockState,
+        level: LevelAccessor,
+        currentPos: BlockPos,
+        facingPos: BlockPos,
+    ): BlockState {
+        if (facingState.block is FireBlock) {
+            val blockEntity = level.getBlockEntity(currentPos)
+            if (blockEntity is BeehiveBlockEntity) {
+                blockEntity.emptyAllLivingFromHive(null, state, BeehiveBlockEntity.BeeReleaseStatus.EMERGENCY)
+            }
+        }
+
+        return super.updateShape(state, facing, facingState, level, currentPos, facingPos)
+    }
+
+    override fun rotate(state: BlockState, rotation: Rotation): BlockState =
+        state.setValue(FACING, rotation.rotate(state.getValue(FACING)))
+
+    override fun mirror(state: BlockState, mirror: Mirror): BlockState =
+        state.setValue(FACING, mirror.mirror(state.getValue(FACING)))
+
+    override fun getRenderShape(state: BlockState): RenderShape =
+        RenderShape.MODEL
+
+    override fun createBlockStateDefinition(builder: StateDefinition.Builder<Block, BlockState>) {
+        builder.add(FACING, DISPLAY_HONEY_LEVEL)
+    }
+
+    private fun giveHoneyBottle(player: Player, hand: InteractionHand, stack: ItemStack) {
+        val honeyBottle = ItemStack(Items.HONEY_BOTTLE)
+        if (stack.isEmpty) {
+            player.setItemInHand(hand, honeyBottle)
+        } else if (!player.inventory.add(honeyBottle)) {
+            player.drop(honeyBottle, false)
+        }
+    }
+
     private fun createPreservedStack(level: ServerLevel, state: BlockState, blockEntity: BlockEntity?): ItemStack {
         val stack = ItemStack(this)
 
         blockEntity?.saveToItem(stack, level.registryAccess())
-
-        stack.set(
-            DataComponents.BLOCK_STATE,
-            BlockItemStateProperties.EMPTY.with(HONEY_LEVEL, state.getValue(HONEY_LEVEL)),
-        )
+        setDisplayState(stack, state.getValue(DISPLAY_HONEY_LEVEL))
         return stack
     }
 
-    private fun shouldGiveCreativeStack(state: BlockState, blockEntity: BlockEntity?): Boolean {
+    private fun shouldGiveCreativeStack(blockEntity: BlockEntity?): Boolean {
         val beeCount = (blockEntity as? BeehiveBlockEntity)?.occupantCount ?: 0
-        return hasContents(state.getValue(HONEY_LEVEL), beeCount)
+        val honeyMb = (blockEntity as? ReinforcedBeehiveBlockEntity)?.storedHoneyMb ?: 0
+        return hasContents(honeyMb, beeCount)
     }
 
-    private fun hasContents(honeyLevel: Int, beeCount: Int): Boolean =
-        honeyLevel > 0 || beeCount > 0
+    private fun storedHoneyMb(stack: ItemStack): Int {
+        val blockEntityData = stack.get(DataComponents.BLOCK_ENTITY_DATA)?.copyTag()
+        if (blockEntityData != null) {
+            return ReinforcedBeehiveBlockEntity.readStoredHoneyMb(blockEntityData)
+        }
 
-    private fun createContentTooltip(labelKey: String, amount: Int, max: Int): Component =
-        Component.empty()
+        val displayHoneyLevel =
+            stack.getOrDefault(DataComponents.BLOCK_STATE, BlockItemStateProperties.EMPTY).get(DISPLAY_HONEY_LEVEL) ?: 0
+        return displayHoneyLevel * ReinforcedBeehiveBlockEntity.MANUAL_HONEY_UNIT_MB
+    }
+
+    private fun hasContents(honeyMb: Int, beeCount: Int): Boolean =
+        honeyMb > 0 || beeCount > 0
+
+    private fun createContentTooltip(labelKey: String, amount: Int, max: Int, unit: String? = null): Component {
+        val suffix = unit?.let { " $it" }.orEmpty()
+        return Component.empty()
             .append(Component.translatable(labelKey).withStyle(ChatFormatting.GRAY))
-            .append(createContentValueComponent(amount, max))
-
-    private fun createContentValueComponent(amount: Int, max: Int): Component {
-        val color = if (amount >= max) ChatFormatting.GREEN else ChatFormatting.GRAY
-        return Component.literal("$amount / $max").withStyle(color)
+            .append(createContentValueComponent(amount, max, suffix))
     }
+
+    private fun createContentValueComponent(amount: Int, max: Int, suffix: String): Component {
+        val color = if (amount >= max) ChatFormatting.GREEN else ChatFormatting.GRAY
+        return Component.literal("$amount / $max$suffix").withStyle(color)
+    }
+
+    private fun angerNearbyBees(level: Level, pos: BlockPos) {
+        val bees = level.getEntitiesOfClass(Bee::class.java, AABB(pos).inflate(8.0, 6.0, 8.0))
+        if (bees.isEmpty()) {
+            return
+        }
+
+        val players = level.getEntitiesOfClass(Player::class.java, AABB(pos).inflate(8.0, 6.0, 8.0))
+        if (players.isEmpty()) {
+            return
+        }
+
+        for (bee in bees) {
+            if (bee.target == null) {
+                bee.target = Util.getRandom(players, level.random)
+            }
+        }
+    }
+
+    private fun trySpawnDripParticles(level: Level, pos: BlockPos, state: BlockState) {
+        if (!state.fluidState.isEmpty || level.random.nextFloat() < 0.3f) {
+            return
+        }
+
+        val shape = state.getCollisionShape(level, pos)
+        val maxY = shape.max(Direction.Axis.Y)
+        if (maxY < 1.0 || state.`is`(BlockTags.IMPERMEABLE)) {
+            return
+        }
+
+        val minY = shape.min(Direction.Axis.Y)
+        if (minY > 0.0) {
+            spawnParticle(level, pos, shape, pos.y + minY - 0.05)
+            return
+        }
+
+        val belowPos = pos.below()
+        val belowState = level.getBlockState(belowPos)
+        val belowShape = belowState.getCollisionShape(level, belowPos)
+        val belowMaxY = belowShape.max(Direction.Axis.Y)
+        if (
+            (belowMaxY < 1.0 || !belowState.isCollisionShapeFullBlock(level, belowPos)) &&
+            belowState.fluidState.isEmpty
+        ) {
+            spawnParticle(level, pos, shape, pos.y - 0.05)
+        }
+    }
+
+    private fun spawnParticle(level: Level, pos: BlockPos, shape: VoxelShape, y: Double) {
+        level.addParticle(
+            ParticleTypes.DRIPPING_HONEY,
+            Mth.lerp(level.random.nextDouble(), pos.x + shape.min(Direction.Axis.X), pos.x + shape.max(Direction.Axis.X)),
+            y,
+            Mth.lerp(level.random.nextDouble(), pos.z + shape.min(Direction.Axis.Z), pos.z + shape.max(Direction.Axis.Z)),
+            0.0,
+            0.0,
+            0.0,
+        )
+    }
+
+    private fun isExplosive(entity: Entity?): Boolean =
+        entity is PrimedTnt ||
+            entity is Creeper ||
+            entity is WitherSkull ||
+            entity is WitherBoss ||
+            entity is MinecartTNT
 
     companion object {
         const val MAX_HONEY_LEVELS = 5
+        private const val SHEARED_HONEYCOMB_COUNT = 3
 
-        val HONEY_LEVEL: IntegerProperty = BeehiveBlock.HONEY_LEVEL
-        val CODEC: MapCodec<BeehiveBlock> = simpleCodec(::ReinforcedBeehiveBlock)
+        val FACING: DirectionProperty = HorizontalDirectionalBlock.FACING
+        val DISPLAY_HONEY_LEVEL: IntegerProperty =
+            IntegerProperty.create("display_honey_level", 0, MAX_HONEY_LEVELS)
+        val CODEC: MapCodec<ReinforcedBeehiveBlock> = simpleCodec(::ReinforcedBeehiveBlock)
         private const val HONEY_TOOLTIP = "tooltip.${CreateApiculture.MOD_ID}.reinforced_beehive.honey"
         private const val BEES_TOOLTIP = "tooltip.${CreateApiculture.MOD_ID}.reinforced_beehive.bees"
+
+        fun displayHoneyLevel(storedHoneyMb: Int): Int =
+            (storedHoneyMb / ReinforcedBeehiveBlockEntity.MANUAL_HONEY_UNIT_MB).coerceIn(0, MAX_HONEY_LEVELS)
+
+        fun setDisplayState(stack: ItemStack, displayHoneyLevel: Int) {
+            if (displayHoneyLevel <= 0) {
+                stack.remove(DataComponents.BLOCK_STATE)
+                return
+            }
+
+            stack.set(
+                DataComponents.BLOCK_STATE,
+                BlockItemStateProperties.EMPTY.with(DISPLAY_HONEY_LEVEL, displayHoneyLevel.coerceAtMost(MAX_HONEY_LEVELS)),
+            )
+        }
     }
 }

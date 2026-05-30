@@ -2,6 +2,7 @@ package io.github.reasure3.registry
 
 import io.github.reasure3.CreateApiculture
 import io.github.reasure3.content.hive.ReinforcedBeehiveBlock
+import net.minecraft.core.component.DataComponents
 import net.minecraft.world.item.Item
 import net.minecraft.world.level.block.Block
 import net.minecraft.world.level.block.Blocks
@@ -20,6 +21,7 @@ object ModBlocks {
         registerWithItem(
             name = "reinforced_beehive",
             properties = andesiteCasingProperties(),
+            itemProperties = Item.Properties().component(DataComponents.BEES, listOf()),
             factory = ::ReinforcedBeehiveBlock,
         )
 

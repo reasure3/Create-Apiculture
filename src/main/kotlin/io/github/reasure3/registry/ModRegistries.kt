@@ -9,5 +9,6 @@ object ModRegistries {
         ModBlockEntities.register(modEventBus)
         ModPoiTypes.register(modEventBus)
         ModCreativeTabs.register(modEventBus)
+        ModCapabilities.register(modEventBus)
     }
 }
