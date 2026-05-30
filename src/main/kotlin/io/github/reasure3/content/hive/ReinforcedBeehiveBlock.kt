@@ -10,17 +10,13 @@ import net.minecraft.advancements.CriteriaTriggers
 import net.minecraft.core.BlockPos
 import net.minecraft.core.Direction
 import net.minecraft.core.component.DataComponents
-import net.minecraft.core.particles.ParticleTypes
 import net.minecraft.network.chat.Component
 import net.minecraft.server.level.ServerLevel
 import net.minecraft.server.level.ServerPlayer
 import net.minecraft.sounds.SoundEvents
 import net.minecraft.sounds.SoundSource
 import net.minecraft.stats.Stats
-import net.minecraft.tags.BlockTags
 import net.minecraft.tags.EnchantmentTags
-import net.minecraft.util.Mth
-import net.minecraft.util.RandomSource
 import net.minecraft.world.InteractionHand
 import net.minecraft.world.InteractionResult
 import net.minecraft.world.ItemInteractionResult
@@ -67,18 +63,20 @@ import net.minecraft.world.level.storage.loot.LootParams
 import net.minecraft.world.level.storage.loot.parameters.LootContextParams
 import net.minecraft.world.phys.AABB
 import net.minecraft.world.phys.BlockHitResult
-import net.minecraft.world.phys.shapes.VoxelShape
 import net.neoforged.neoforge.common.ItemAbilities
 import net.neoforged.neoforge.common.NeoForge
 import net.neoforged.neoforge.event.level.BlockEvent
 
 /**
- * Ports the vanilla beehive behaviors this block still needs without extending BeehiveBlock.
+ * Ports the vanilla beehive behaviors this block still needs without extending
+ * [net.minecraft.world.level.block.BeehiveBlock].
  *
  * Reinforced hives must not expose the vanilla honey-level property: Create's VanillaFluidTargets
  * treats blocks with BlockStateProperties.LEVEL_HONEY as vanilla hives, drains 250mB, and resets
  * that level to 0. Honey storage therefore lives in ReinforcedBeehiveBlockEntity, while this block
  * only exposes a derived display_honey_level for models and redstone.
+ *
+ * Vanilla honey-drip particles are intentionally omitted to keep large automated apiaries cheap.
  */
 class ReinforcedBeehiveBlock(properties: Properties) : BaseEntityBlock(properties), IWrenchable {
     init {
@@ -283,14 +281,6 @@ class ReinforcedBeehiveBlock(properties: Properties) : BaseEntityBlock(propertie
         return ItemInteractionResult.sidedSuccess(level.isClientSide)
     }
 
-    override fun animateTick(state: BlockState, level: Level, pos: BlockPos, random: RandomSource) {
-        if (state.getValue(DISPLAY_HONEY_LEVEL) >= MAX_HONEY_LEVELS) {
-            repeat(random.nextInt(1) + 1) {
-                trySpawnDripParticles(level, pos, state)
-            }
-        }
-    }
-
     override fun updateShape(
         state: BlockState,
         facing: Direction,
@@ -393,47 +383,6 @@ class ReinforcedBeehiveBlock(properties: Properties) : BaseEntityBlock(propertie
                 bee.target = Util.getRandom(players, level.random)
             }
         }
-    }
-
-    private fun trySpawnDripParticles(level: Level, pos: BlockPos, state: BlockState) {
-        if (!state.fluidState.isEmpty || level.random.nextFloat() < 0.3f) {
-            return
-        }
-
-        val shape = state.getCollisionShape(level, pos)
-        val maxY = shape.max(Direction.Axis.Y)
-        if (maxY < 1.0 || state.`is`(BlockTags.IMPERMEABLE)) {
-            return
-        }
-
-        val minY = shape.min(Direction.Axis.Y)
-        if (minY > 0.0) {
-            spawnParticle(level, pos, shape, pos.y + minY - 0.05)
-            return
-        }
-
-        val belowPos = pos.below()
-        val belowState = level.getBlockState(belowPos)
-        val belowShape = belowState.getCollisionShape(level, belowPos)
-        val belowMaxY = belowShape.max(Direction.Axis.Y)
-        if (
-            (belowMaxY < 1.0 || !belowState.isCollisionShapeFullBlock(level, belowPos)) &&
-            belowState.fluidState.isEmpty
-        ) {
-            spawnParticle(level, pos, shape, pos.y - 0.05)
-        }
-    }
-
-    private fun spawnParticle(level: Level, pos: BlockPos, shape: VoxelShape, y: Double) {
-        level.addParticle(
-            ParticleTypes.DRIPPING_HONEY,
-            Mth.lerp(level.random.nextDouble(), pos.x + shape.min(Direction.Axis.X), pos.x + shape.max(Direction.Axis.X)),
-            y,
-            Mth.lerp(level.random.nextDouble(), pos.z + shape.min(Direction.Axis.Z), pos.z + shape.max(Direction.Axis.Z)),
-            0.0,
-            0.0,
-            0.0,
-        )
     }
 
     private fun isExplosive(entity: Entity?): Boolean =
