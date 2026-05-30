@@ -30,8 +30,32 @@ class ReinforcedBeehiveBlockEntity(
         }
     }
 
+    private val externalFluidHandler = object : IFluidHandler {
+        override fun getTanks(): Int =
+            honeyTank.tanks
+
+        override fun getFluidInTank(tank: Int): FluidStack =
+            honeyTank.getFluidInTank(tank)
+
+        override fun getTankCapacity(tank: Int): Int =
+            honeyTank.getTankCapacity(tank)
+
+        override fun isFluidValid(tank: Int, stack: FluidStack): Boolean =
+            false
+
+        override fun fill(resource: FluidStack, action: FluidAction): Int =
+            0
+
+        override fun drain(resource: FluidStack, action: FluidAction): FluidStack =
+            honeyTank.drain(resource, action)
+
+        override fun drain(maxDrain: Int, action: FluidAction): FluidStack =
+            honeyTank.drain(maxDrain, action)
+    }
+
+    // External automation may inspect and extract honey, but only bees/internal conversion may insert it.
     val fluidHandler: IFluidHandler
-        get() = honeyTank
+        get() = externalFluidHandler
 
     val storedHoneyMb: Int
         get() = honeyTank.fluidAmount
