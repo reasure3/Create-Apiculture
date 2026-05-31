@@ -1,19 +1,18 @@
-package io.github.reasure3.compat.jade
+package io.github.reasure3.compat.jade.client
 
 import com.simibubi.create.AllFluids
-import com.simibubi.create.content.contraptions.AbstractContraptionEntity
-import io.github.reasure3.CreateApiculture
+import io.github.reasure3.compat.jade.AFTER_FLUID_STORAGE_PRIORITY
+import io.github.reasure3.compat.jade.REINFORCED_BEEHIVE_CONTRAPTION_BEE_COUNT_TAG
+import io.github.reasure3.compat.jade.REINFORCED_BEEHIVE_CONTRAPTION_CONTENTS_UID
+import io.github.reasure3.compat.jade.REINFORCED_BEEHIVE_HIVE_COUNT_TAG
+import io.github.reasure3.compat.jade.REINFORCED_BEEHIVE_HONEY_AMOUNT_TAG
 import io.github.reasure3.content.hive.ReinforcedBeehiveBlock
 import io.github.reasure3.content.hive.ReinforcedBeehiveBlockEntity
-import io.github.reasure3.registry.ModBlocks
-import net.minecraft.nbt.CompoundTag
-import net.minecraft.nbt.Tag
 import net.minecraft.network.chat.Component
 import net.minecraft.resources.ResourceLocation
 import net.minecraft.world.level.block.entity.BeehiveBlockEntity
 import snownee.jade.api.EntityAccessor
 import snownee.jade.api.IEntityComponentProvider
-import snownee.jade.api.IServerDataProvider
 import snownee.jade.api.ITooltip
 import snownee.jade.api.config.IPluginConfig
 import snownee.jade.api.fluid.JadeFluidObject
@@ -23,33 +22,26 @@ import snownee.jade.api.ui.IDisplayHelper
 import snownee.jade.api.ui.IElementHelper
 import snownee.jade.api.view.FluidView
 
-internal object ReinforcedBeehiveContraptionProvider : IEntityComponentProvider, IServerDataProvider<EntityAccessor> {
-    private const val HIVE_COUNT_TAG = "ReinforcedBeehiveCount"
-    private const val HONEY_AMOUNT_TAG = "ReinforcedBeehiveHoneyAmount"
-    private const val BEE_COUNT_TAG = "ReinforcedBeehiveBeeCount"
-    private const val BEES_TAG = "bees"
-    private const val AFTER_FLUID_STORAGE_PRIORITY = 1001
-    private val UID: ResourceLocation = CreateApiculture.id("reinforced_beehive_contraption_contents")
-
+internal object ReinforcedBeehiveContraptionComponentProvider : IEntityComponentProvider {
     override fun appendTooltip(
         tooltip: ITooltip,
         accessor: EntityAccessor,
         config: IPluginConfig,
     ) {
         val serverData = accessor.serverData
-        if (!serverData.contains(HIVE_COUNT_TAG)) {
+        if (!serverData.contains(REINFORCED_BEEHIVE_HIVE_COUNT_TAG)) {
             return
         }
 
-        val hiveCount = serverData.getInt(HIVE_COUNT_TAG)
+        val hiveCount = serverData.getInt(REINFORCED_BEEHIVE_HIVE_COUNT_TAG)
         if (hiveCount <= 0) {
             return
         }
 
         val honeyCapacity = hiveCount * ReinforcedBeehiveBlockEntity.HONEY_CAPACITY_MB
         val beeCapacity = hiveCount * BeehiveBlockEntity.MAX_OCCUPANTS
-        val honeyAmount = serverData.getInt(HONEY_AMOUNT_TAG).coerceIn(0, honeyCapacity)
-        val beeCount = serverData.getInt(BEE_COUNT_TAG).coerceIn(0, beeCapacity)
+        val honeyAmount = serverData.getInt(REINFORCED_BEEHIVE_HONEY_AMOUNT_TAG).coerceIn(0, honeyCapacity)
+        val beeCount = serverData.getInt(REINFORCED_BEEHIVE_CONTRAPTION_BEE_COUNT_TAG).coerceIn(0, beeCapacity)
 
         appendHoneyTooltip(tooltip, accessor, honeyAmount, honeyCapacity)
         tooltip.add(
@@ -58,7 +50,7 @@ internal object ReinforcedBeehiveContraptionProvider : IEntityComponentProvider,
                 beeCount,
                 beeCapacity,
             ),
-            UID,
+            REINFORCED_BEEHIVE_CONTRAPTION_CONTENTS_UID,
         )
     }
 
@@ -79,7 +71,7 @@ internal object ReinforcedBeehiveContraptionProvider : IEntityComponentProvider,
                 helper.progressStyle().overlay(fluidView.overlay),
                 BoxStyle.getNestedBox(),
                 true,
-            ).tag(UID),
+            ).tag(REINFORCED_BEEHIVE_CONTRAPTION_CONTENTS_UID),
         )
     }
 
@@ -102,35 +94,8 @@ internal object ReinforcedBeehiveContraptionProvider : IEntityComponentProvider,
         )
     }
 
-    override fun appendServerData(data: CompoundTag, accessor: EntityAccessor) {
-        val contraptionEntity = accessor.entity as? AbstractContraptionEntity ?: return
-        val contraption = contraptionEntity.getContraption() ?: return
-
-        var hiveCount = 0
-        var honeyAmount = 0
-        var beeCount = 0
-        for (blockInfo in contraption.getBlocks().values) {
-            if (blockInfo.state().block != ModBlocks.REINFORCED_BEEHIVE.get()) {
-                continue
-            }
-
-            hiveCount += 1
-            val nbt = blockInfo.nbt() ?: continue
-            honeyAmount += ReinforcedBeehiveBlockEntity.readStoredHoneyMb(nbt)
-            beeCount += nbt.getList(BEES_TAG, Tag.TAG_COMPOUND.toInt()).size
-        }
-
-        if (hiveCount <= 0) {
-            return
-        }
-
-        data.putInt(HIVE_COUNT_TAG, hiveCount)
-        data.putInt(HONEY_AMOUNT_TAG, honeyAmount)
-        data.putInt(BEE_COUNT_TAG, beeCount)
-    }
-
     override fun getUid(): ResourceLocation =
-        UID
+        REINFORCED_BEEHIVE_CONTRAPTION_CONTENTS_UID
 
     override fun getDefaultPriority(): Int =
         AFTER_FLUID_STORAGE_PRIORITY
