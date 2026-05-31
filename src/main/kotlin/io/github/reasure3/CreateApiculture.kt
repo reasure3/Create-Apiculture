@@ -2,6 +2,7 @@ package io.github.reasure3
 
 import com.mojang.logging.LogUtils
 import io.github.reasure3.config.CreateApicultureConfig
+import io.github.reasure3.content.hive.ReinforcedBeehiveDispenserBehavior
 import io.github.reasure3.datagen.CreateApicultureDataGenerators
 import io.github.reasure3.registry.ModRegistries
 import net.minecraft.resources.ResourceLocation
@@ -25,6 +26,8 @@ class CreateApiculture(
     }
 
     private fun onCommonSetup(event: FMLCommonSetupEvent) {
+        ReinforcedBeehiveDispenserBehavior.register()
+
         if (CreateApicultureConfig.COMMON.logRegistrySummary.get()) {
             LOGGER.info("Registered base content hooks for {}", MOD_ID)
         }

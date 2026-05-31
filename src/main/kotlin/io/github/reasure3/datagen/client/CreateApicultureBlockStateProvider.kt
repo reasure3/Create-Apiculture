@@ -40,7 +40,7 @@ class CreateApicultureBlockStateProvider(
         }
 
         horizontalBlock(block) { state: BlockState ->
-            honeyLevelModels.getValue(state.getValue(ReinforcedBeehiveBlock.HONEY_LEVEL))
+            honeyLevelModels.getValue(state.getValue(ReinforcedBeehiveBlock.DISPLAY_HONEY_LEVEL))
         }
         simpleBlockItem(block, honeyLevelModels.getValue(0))
     }
