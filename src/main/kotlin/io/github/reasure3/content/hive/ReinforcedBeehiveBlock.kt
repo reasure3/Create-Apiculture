@@ -312,8 +312,7 @@ class ReinforcedBeehiveBlock(properties: Properties) : BaseEntityBlock(propertie
 
     private fun shouldGiveCreativeStack(blockEntity: BlockEntity?): Boolean {
         val beeCount = (blockEntity as? BeehiveBlockEntity)?.occupantCount ?: 0
-        val honeyMb = (blockEntity as? ReinforcedBeehiveBlockEntity)?.storedHoneyMb ?: 0
-        return hasContents(honeyMb, beeCount)
+        return beeCount > 0
     }
 
     private fun storedHoneyMb(stack: ItemStack): Int {
