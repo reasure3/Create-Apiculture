@@ -29,6 +29,7 @@ class CreateApicultureJadePlugin : IWailaPlugin {
 
 private object ReinforcedBeehiveBeeProvider : IBlockComponentProvider, IServerDataProvider<BlockAccessor> {
     private const val BEE_COUNT_TAG = "BeeCount"
+    private const val AFTER_FLUID_STORAGE_PRIORITY = 1001
     private val UID: ResourceLocation = CreateApiculture.id("reinforced_beehive_bees")
 
     override fun appendTooltip(
@@ -59,4 +60,7 @@ private object ReinforcedBeehiveBeeProvider : IBlockComponentProvider, IServerDa
 
     override fun getUid(): ResourceLocation =
         UID
+
+    override fun getDefaultPriority(): Int =
+        AFTER_FLUID_STORAGE_PRIORITY
 }
