@@ -1,5 +1,7 @@
 {
   "block.create_apiculture.reinforced_beehive": "강화 벌통",
+  "config.jade.plugin_create_apiculture.reinforced_beehive_bees": "강화 벌통 벌 수",
+  "config.jade.plugin_create_apiculture.reinforced_beehive_contraption_contents": "강화 벌통 장치 내용물",
   "itemGroup.create_apiculture": "Create: 양봉술",
   "tooltip.create_apiculture.reinforced_beehive.bees": "벌: ",
   "tooltip.create_apiculture.reinforced_beehive.honey": "꿀: "
