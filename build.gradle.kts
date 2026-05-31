@@ -145,6 +145,7 @@ dependencies {
     implementation("com.tterrag.registrate:Registrate:$registrateVersion")
 
     compileOnly("mezz.jei:jei-$minecraftVersion-neoforge-api:$jeiVersion")
+    compileOnly("maven.modrinth:jade:$jadeVersion")
 
     // Runtime-only convenience mods for local run configurations.
     localRuntime("mezz.jei:jei-$minecraftVersion-neoforge:$jeiVersion")

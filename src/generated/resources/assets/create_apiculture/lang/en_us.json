@@ -1,5 +1,6 @@
 {
   "block.create_apiculture.reinforced_beehive": "Reinforced Beehive",
+  "config.jade.plugin_create_apiculture.reinforced_beehive_bees": "Reinforced Beehive Bees",
   "itemGroup.create_apiculture": "Create: Apiculture",
   "tooltip.create_apiculture.reinforced_beehive.bees": "Bees: ",
   "tooltip.create_apiculture.reinforced_beehive.honey": "Honey: "

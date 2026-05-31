@@ -14,5 +14,6 @@ class CreateApicultureEnUsLanguageProvider(output: PackOutput) :
         add(ModBlocks.REINFORCED_BEEHIVE.translationKey(), "Reinforced Beehive")
         add("tooltip.create_apiculture.reinforced_beehive.honey", "Honey: ")
         add("tooltip.create_apiculture.reinforced_beehive.bees", "Bees: ")
+        add("config.jade.plugin_${CreateApiculture.MOD_ID}.reinforced_beehive_bees", "Reinforced Beehive Bees")
     }
 }
