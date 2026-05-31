@@ -68,6 +68,16 @@ class ReinforcedBeehiveBlockEntity(
     override fun getType(): BlockEntityType<*> =
         ModBlockEntities.REINFORCED_BEEHIVE.get()
 
+    // Bypass BeehiveBlockEntity.setChanged(), which scans for nearby fire and releases bees.
+    override fun setChanged() {
+        val level = level ?: return
+        setChanged(level, worldPosition, blockState)
+    }
+
+    // Bee AI still asks the hive directly about nearby fire.
+    override fun isFireNearby(): Boolean =
+        false
+
     fun tryConsumeManualUnit(): Boolean {
         if (storedHoneyMb < MANUAL_HONEY_UNIT_MB) {
             return false

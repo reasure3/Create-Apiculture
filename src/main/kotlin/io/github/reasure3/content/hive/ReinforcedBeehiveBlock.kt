@@ -41,11 +41,9 @@ import net.minecraft.world.item.context.UseOnContext
 import net.minecraft.world.item.enchantment.EnchantmentHelper
 import net.minecraft.world.level.GameRules
 import net.minecraft.world.level.Level
-import net.minecraft.world.level.LevelAccessor
 import net.minecraft.world.level.block.BaseEntityBlock
 import net.minecraft.world.level.block.Block
 import net.minecraft.world.level.block.CampfireBlock
-import net.minecraft.world.level.block.FireBlock
 import net.minecraft.world.level.block.HorizontalDirectionalBlock
 import net.minecraft.world.level.block.Mirror
 import net.minecraft.world.level.block.RenderShape
@@ -77,6 +75,7 @@ import net.neoforged.neoforge.event.level.BlockEvent
  * only exposes a derived display_honey_level for models and redstone.
  *
  * Vanilla honey-drip particles are intentionally omitted to keep large automated apiaries cheap.
+ * Fire-nearby emergency release is also intentionally omitted because reinforced hives are fire-safe.
  */
 class ReinforcedBeehiveBlock(properties: Properties) : BaseEntityBlock(properties), IWrenchable {
     init {
@@ -279,24 +278,6 @@ class ReinforcedBeehiveBlock(properties: Properties) : BaseEntityBlock(propertie
         }
 
         return ItemInteractionResult.sidedSuccess(level.isClientSide)
-    }
-
-    override fun updateShape(
-        state: BlockState,
-        facing: Direction,
-        facingState: BlockState,
-        level: LevelAccessor,
-        currentPos: BlockPos,
-        facingPos: BlockPos,
-    ): BlockState {
-        if (facingState.block is FireBlock) {
-            val blockEntity = level.getBlockEntity(currentPos)
-            if (blockEntity is BeehiveBlockEntity) {
-                blockEntity.emptyAllLivingFromHive(null, state, BeehiveBlockEntity.BeeReleaseStatus.EMERGENCY)
-            }
-        }
-
-        return super.updateShape(state, facing, facingState, level, currentPos, facingPos)
     }
 
     override fun rotate(state: BlockState, rotation: Rotation): BlockState =
