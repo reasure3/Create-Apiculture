@@ -39,6 +39,7 @@ import net.minecraft.world.item.ItemStack
 import net.minecraft.world.item.Items
 import net.minecraft.world.item.TooltipFlag
 import net.minecraft.world.item.component.BlockItemStateProperties
+import net.minecraft.world.item.component.CustomData
 import net.minecraft.world.item.context.BlockPlaceContext
 import net.minecraft.world.item.context.UseOnContext
 import net.minecraft.world.item.enchantment.EnchantmentHelper
@@ -345,14 +346,20 @@ class ReinforcedBeehiveBlock(properties: Properties) : BaseEntityBlock(propertie
     }
 
     private fun storedHoneyMb(stack: ItemStack): Int {
-        val blockEntityData = stack.get(DataComponents.BLOCK_ENTITY_DATA)?.copyTag()
+        val blockEntityData = stack.get(DataComponents.BLOCK_ENTITY_DATA)
         if (blockEntityData != null) {
-            return ReinforcedBeehiveBlockEntity.readStoredHoneyMb(blockEntityData)
+            return readStoredHoneyMb(blockEntityData)
         }
 
         val displayHoneyLevel =
             stack.getOrDefault(DataComponents.BLOCK_STATE, BlockItemStateProperties.EMPTY).get(DISPLAY_HONEY_LEVEL) ?: 0
         return displayHoneyLevel * ReinforcedBeehiveBlockEntity.MANUAL_HONEY_UNIT_MB
+    }
+
+    @Suppress("DEPRECATION")
+    private fun readStoredHoneyMb(blockEntityData: CustomData): Int {
+        // Tooltip rendering only reads this tag; avoid copying the full block entity data on hover.
+        return ReinforcedBeehiveBlockEntity.readStoredHoneyMb(blockEntityData.unsafe)
     }
 
     private fun hasContents(honeyMb: Int, beeCount: Int): Boolean =
