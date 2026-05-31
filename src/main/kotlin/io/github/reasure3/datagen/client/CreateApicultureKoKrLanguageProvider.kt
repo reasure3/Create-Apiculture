@@ -16,5 +16,9 @@ class CreateApicultureKoKrLanguageProvider(output: PackOutput) :
         add(ReinforcedBeehiveBlock.HONEY_TOOLTIP, "꿀: ")
         add(ReinforcedBeehiveBlock.BEES_TOOLTIP, "벌: ")
         add("config.jade.plugin_${CreateApiculture.MOD_ID}.reinforced_beehive_bees", "강화 벌통 벌 수")
+        add(
+            "config.jade.plugin_${CreateApiculture.MOD_ID}.reinforced_beehive_contraption_contents",
+            "강화 벌통 장치 내용물",
+        )
     }
 }

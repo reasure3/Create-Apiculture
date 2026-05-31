@@ -16,5 +16,9 @@ class CreateApicultureEnUsLanguageProvider(output: PackOutput) :
         add(ReinforcedBeehiveBlock.HONEY_TOOLTIP, "Honey: ")
         add(ReinforcedBeehiveBlock.BEES_TOOLTIP, "Bees: ")
         add("config.jade.plugin_${CreateApiculture.MOD_ID}.reinforced_beehive_bees", "Reinforced Beehive Bees")
+        add(
+            "config.jade.plugin_${CreateApiculture.MOD_ID}.reinforced_beehive_contraption_contents",
+            "Reinforced Beehive Contraption Contents",
+        )
     }
 }
