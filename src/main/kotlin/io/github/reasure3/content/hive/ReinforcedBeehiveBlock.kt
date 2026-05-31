@@ -335,18 +335,6 @@ class ReinforcedBeehiveBlock(properties: Properties) : BaseEntityBlock(propertie
     private fun hasContents(honeyMb: Int, beeCount: Int): Boolean =
         honeyMb > 0 || beeCount > 0
 
-    private fun createContentTooltip(labelKey: String, amount: Int, max: Int, unit: String? = null): Component {
-        val suffix = unit?.let { " $it" }.orEmpty()
-        return Component.empty()
-            .append(Component.translatable(labelKey).withStyle(ChatFormatting.GRAY))
-            .append(createContentValueComponent(amount, max, suffix))
-    }
-
-    private fun createContentValueComponent(amount: Int, max: Int, suffix: String): Component {
-        val color = if (amount >= max) ChatFormatting.GREEN else ChatFormatting.GRAY
-        return Component.literal("$amount / $max$suffix").withStyle(color)
-    }
-
     private fun angerNearbyBees(level: Level, pos: BlockPos) {
         val bees = level.getEntitiesOfClass(Bee::class.java, AABB(pos).inflate(8.0, 6.0, 8.0))
         if (bees.isEmpty()) {
@@ -380,11 +368,18 @@ class ReinforcedBeehiveBlock(properties: Properties) : BaseEntityBlock(propertie
         val DISPLAY_HONEY_LEVEL: IntegerProperty =
             IntegerProperty.create("display_honey_level", 0, MAX_HONEY_LEVELS)
         val CODEC: MapCodec<ReinforcedBeehiveBlock> = simpleCodec(::ReinforcedBeehiveBlock)
-        private const val HONEY_TOOLTIP = "tooltip.${CreateApiculture.MOD_ID}.reinforced_beehive.honey"
-        private const val BEES_TOOLTIP = "tooltip.${CreateApiculture.MOD_ID}.reinforced_beehive.bees"
+        const val HONEY_TOOLTIP = "tooltip.${CreateApiculture.MOD_ID}.reinforced_beehive.honey"
+        const val BEES_TOOLTIP = "tooltip.${CreateApiculture.MOD_ID}.reinforced_beehive.bees"
 
         fun displayHoneyLevel(storedHoneyMb: Int): Int =
             (storedHoneyMb / ReinforcedBeehiveBlockEntity.MANUAL_HONEY_UNIT_MB).coerceIn(0, MAX_HONEY_LEVELS)
+
+        fun createContentTooltip(labelKey: String, amount: Int, max: Int, unit: String? = null): Component {
+            val suffix = unit?.let { " $it" }.orEmpty()
+            return Component.empty()
+                .append(Component.translatable(labelKey).withStyle(ChatFormatting.GRAY))
+                .append(createContentValueComponent(amount, max, suffix))
+        }
 
         fun setDisplayState(stack: ItemStack, displayHoneyLevel: Int) {
             if (displayHoneyLevel <= 0) {
@@ -396,6 +391,11 @@ class ReinforcedBeehiveBlock(properties: Properties) : BaseEntityBlock(propertie
                 DataComponents.BLOCK_STATE,
                 BlockItemStateProperties.EMPTY.with(DISPLAY_HONEY_LEVEL, displayHoneyLevel.coerceAtMost(MAX_HONEY_LEVELS)),
             )
+        }
+
+        private fun createContentValueComponent(amount: Int, max: Int, suffix: String): Component {
+            val color = if (amount >= max) ChatFormatting.GREEN else ChatFormatting.GRAY
+            return Component.literal("$amount / $max$suffix").withStyle(color)
         }
     }
 }
